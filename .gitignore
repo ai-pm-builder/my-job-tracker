@@ -1,0 +1,8 @@
+cv/
+.env
+__pycache__/
+*.pyc
+data/
+output/
+venv/
+.venv/

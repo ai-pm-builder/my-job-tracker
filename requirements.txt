@@ -1,0 +1,13 @@
+# ===== Module 1: Foundation + Scraping =====
+python-jobspy>=1.1.75
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+python-dotenv>=1.0.0
+pandas>=2.1.0
+
+# ===== Module 2: Job Scoring =====
+pymupdf>=1.23.0
+langchain>=0.1.0
+langchain-core>=0.1.0
+langchain-google-genai>=0.0.9
+pydantic>=2.0.0
