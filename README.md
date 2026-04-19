@@ -49,13 +49,6 @@ Inspired by the multi-dimensional scoring methodology from [career-ops](https://
 
 Each job is scored across **5 weighted dimensions**:
 
-| Dimension | Weight | What it measures |
-|---|---|---|
-| `cv_match` | 35% | Skill alignment, experience fit, proof points overlap |
-| `north_star_alignment` | 25% | Match to target role archetypes and career goals |
-| `compensation` | 15% | Salary vs. market (estimated from JD signals) |
-| `cultural_signals` | 15% | Company culture, remote policy, stability |
-| `red_flags` | 10% | Blockers and warnings (inverted: 5 = no flags) |
 
 ### Score Labels
 
@@ -179,6 +172,10 @@ The pipeline will:
 - [ ] Module 3 — Automated ATS-optimized resume tailoring per job
 - [ ] Daily digest delivery (email / Telegram)
 - [ ] Web dashboard for browsing scored jobs
+
+## Evals
+- Data sanity of the jobs, atomicity of fields, and posting times
+- Score system to be evaluated and improved, after manual evaluation, can be handed over to an AI judge
 
 ---
 
