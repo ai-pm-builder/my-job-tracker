@@ -1,6 +1,6 @@
-# 🎯 Automated Senior PM Job Tracker
+# 🎯 Automated Job Tracker
 
-An end-to-end automated pipeline for **Senior Product Manager job search** — scraping, AI-scoring, and resume tailoring, all from a single command.
+An end-to-end automated pipeline for **Job search** — scraping, AI-scoring, and resume tailoring, all from a single command.
 
 Inspired by the multi-dimensional scoring methodology from [career-ops](https://github.com/santifer/career-ops), but **fully independent** — no proprietary CLI tools, no Claude Code, no platform lock-in. Just Python, the Gemini API, and a local SQLite database.
 
