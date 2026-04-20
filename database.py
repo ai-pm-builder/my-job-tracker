@@ -51,9 +51,6 @@ def init_db():
         )
     """)
     
-    # Drop existing scores table to migrate to new career-ops schema (run once)
-    cursor.execute("DROP TABLE IF EXISTS scores")
-
     # ── Scores Table ──
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS scores (

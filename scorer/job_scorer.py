@@ -56,7 +56,7 @@ class JobEvaluation(BaseModel):
 
 def score_job(job_description: str, job_title: str, company: str) -> dict:
     """
-    Score a job using Gemini 2.5 Flash and the career-ops method.
+    Score a job using Gemini 2.5 Flash.
     Returns a dictionary matching the JobEvaluation schema.
     """
     if not job_description or len(job_description.strip()) < 50:
