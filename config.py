@@ -17,9 +17,14 @@ RESUME_PATH = BASE_DIR / "cv" / "Asif-Idris-Senior-product-manager-resume.pdf"
 DB_PATH = DATA_DIR / "jobs.db"
 PROFILE_CACHE_PATH = DATA_DIR / "profile_cache.json"
 
+# ──────────────────────────── Module 3: Dashboard + Resume Tailoring ────────────────────────────
+PROFILE_YML_PATH = BASE_DIR / "profile.yml"
+CV_TEMPLATE_PATH = BASE_DIR / "templates" / "cv-template.html"
+
 # Create directories if they don't exist
 DATA_DIR.mkdir(exist_ok=True)
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+(BASE_DIR / "templates").mkdir(exist_ok=True)
 
 # ──────────────────────────── API Keys ────────────────────────────
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")

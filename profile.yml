@@ -1,0 +1,27 @@
+# ══════════════════════════════════════════════════════════
+# Candidate Master Profile — profile.yml
+# This is the single source of truth for your identity.
+# Used by: CV template header, resume tailoring engine.
+# ══════════════════════════════════════════════════════════
+
+# ── Identity ──────────────────────────────────────────────
+name: "Asif Idris"
+email: "your-email@example.com"       # ← Fill this in
+phone: ""                              # Optional. Leave empty to omit from CV.
+location: "India"
+
+# ── Online Presence ───────────────────────────────────────
+linkedin_url: "https://linkedin.com/in/your-profile"    # ← Fill this in
+linkedin_display: "linkedin.com/in/your-profile"        # ← Fill this in
+portfolio_url: ""                      # Optional. Leave empty to omit from CV.
+portfolio_display: ""                  # Optional.
+
+# ── Resume Source ─────────────────────────────────────────
+# Path to your original resume PDF (used only on first extraction).
+resume_pdf: "cv/Asif-Idris-Senior-product-manager-resume.pdf"
+
+# Path to the editable master profile JSON.
+# Auto-generated on first run — then YOU own it.
+# Edit this JSON to enrich your profile: add skills, fix proof points,
+# add new projects, update experience bullets, etc.
+profile_cache: "data/profile_cache.json"
