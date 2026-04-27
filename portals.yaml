@@ -1,0 +1,157 @@
+title_filter:
+  positive:
+    - product manager
+    - senior product manager
+    - lead product manager
+    - principal product manager
+    - group product manager
+    - director of product
+    - head of product
+    - vp product
+    - vp of product
+  negative:
+    - associate
+    - intern
+    - junior
+    - designer
+    - engineer
+    - data analyst
+    - marketing
+    - sales
+    - customer success
+
+companies:
+  # Greenhouse
+  - name: Stripe
+    careers_url: https://boards.greenhouse.io/stripe
+    enabled: true
+  - name: Airbnb
+    careers_url: https://boards.greenhouse.io/airbnb
+    enabled: true
+  - name: Notion
+    careers_url: https://boards.greenhouse.io/notion
+    enabled: true
+  - name: Figma
+    careers_url: https://boards.greenhouse.io/figma
+    enabled: true
+  - name: Coinbase
+    careers_url: https://boards.greenhouse.io/coinbase
+    enabled: true
+  - name: Discord
+    careers_url: https://boards.greenhouse.io/discord
+    enabled: true
+  - name: Instacart
+    careers_url: https://boards.greenhouse.io/instacart
+    enabled: true
+  - name: Plaid
+    careers_url: https://boards.greenhouse.io/plaid
+    enabled: true
+  - name: Airtable
+    careers_url: https://boards.greenhouse.io/airtable
+    enabled: true
+  - name: Canva
+    careers_url: https://boards.greenhouse.io/canva
+    enabled: true
+  - name: Databricks
+    careers_url: https://boards.greenhouse.io/databricks
+    enabled: true
+  - name: HashiCorp
+    careers_url: https://boards.greenhouse.io/hashicorp
+    enabled: true
+  - name: Gitlab
+    careers_url: https://boards.greenhouse.io/gitlab
+    enabled: true
+  - name: Snyk
+    careers_url: https://boards.greenhouse.io/snyk
+    enabled: true
+  - name: Elastic
+    careers_url: https://boards.greenhouse.io/elastic
+    enabled: true
+  - name: MongoDB
+    careers_url: https://boards.greenhouse.io/mongodb
+    enabled: true
+  - name: Cloudflare
+    careers_url: https://boards.greenhouse.io/cloudflare
+    enabled: true
+  - name: Twilio
+    careers_url: https://boards.greenhouse.io/twilio
+    enabled: true
+  - name: HubSpot
+    careers_url: https://boards.greenhouse.io/hubspot
+    enabled: true
+  - name: Razorpay
+    careers_url: https://boards.greenhouse.io/razorpay
+    enabled: true
+  - name: CRED
+    careers_url: https://boards.greenhouse.io/cred
+    enabled: true
+  - name: Zerodha
+    careers_url: https://boards.greenhouse.io/zerodha
+    enabled: true
+  - name: PhonePe
+    careers_url: https://boards.greenhouse.io/phonepe
+    enabled: true
+  - name: Swiggy
+    careers_url: https://boards.greenhouse.io/swiggy
+    enabled: true
+  - name: Meesho
+    careers_url: https://boards.greenhouse.io/meesho
+    enabled: true
+
+  # Lever
+  - name: Netflix
+    careers_url: https://jobs.lever.co/netflix
+    enabled: true
+  - name: Spotify
+    careers_url: https://jobs.lever.co/spotify
+    enabled: true
+  - name: Shopify
+    careers_url: https://jobs.lever.co/shopify
+    enabled: true
+  - name: Lyft
+    careers_url: https://jobs.lever.co/lyft
+    enabled: true
+  - name: Reddit
+    careers_url: https://jobs.lever.co/reddit
+    enabled: true
+  - name: Scale AI
+    careers_url: https://jobs.lever.co/scaleai
+    enabled: true
+  - name: Rippling
+    careers_url: https://jobs.lever.co/rippling
+    enabled: true
+  - name: Verkada
+    careers_url: https://jobs.lever.co/verkada
+    enabled: true
+  - name: Loom
+    careers_url: https://jobs.lever.co/loom
+    enabled: true
+  - name: Faire
+    careers_url: https://jobs.lever.co/faire
+    enabled: true
+  - name: Postman
+    careers_url: https://jobs.lever.co/postman
+    enabled: true
+  - name: Groww
+    careers_url: https://jobs.lever.co/groww
+    enabled: true
+  - name: Unacademy
+    careers_url: https://jobs.lever.co/unacademy
+    enabled: true
+  - name: Dream11
+    careers_url: https://jobs.lever.co/dream11
+    enabled: true
+  - name: Jupiter
+    careers_url: https://jobs.lever.co/jupiter-money
+    enabled: true
+  - name: Slice
+    careers_url: https://jobs.lever.co/sliceit
+    enabled: true
+
+  # Ashby (Adding a few new ones as per plan)
+  - name: Cohere
+    careers_url: https://jobs.ashbyhq.com/cohere
+    enabled: true
+  - name: Anthropic
+    careers_url: https://jobs.ashbyhq.com/anthropic
+    enabled: true
