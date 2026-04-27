@@ -4,6 +4,9 @@ requests>=2.31.0
 beautifulsoup4>=4.12.0
 python-dotenv>=1.0.0
 pandas>=2.1.0
+feedparser>=6.0.0
+aiohttp>=3.9.0
+pyyaml>=6.0.0
 
 # ===== Module 2: Job Scoring =====
 pymupdf>=1.23.0

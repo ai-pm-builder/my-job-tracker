@@ -10,17 +10,27 @@ import logging
 import time
 from datetime import datetime
 
+import json
+
 import config
 import database
-from scraper import run_jobspy_scraper, run_greenhouse_scraper, run_lever_scraper
+from scraper import run_jobspy_scraper, run_ats_scraper, run_api_scraper, run_rss_scraper
 from scorer.job_scorer import score_job
+from dedup import DeduplicationEngine
+from checker.liveness import is_live
+from tracker.status_manager import ensure_status_columns, mark_evaluated
+from notifications.digest import send_daily_digest
 
 # ──────────────────────────── Logging Setup ────────────────────────────
+# Use a UTF-8-safe stream handler to avoid cp1252 encoding errors on Windows
+_stdout_handler = logging.StreamHandler(sys.stdout)
+_stdout_handler.stream = open(sys.stdout.fileno(), mode='w', encoding='utf-8', buffering=1, closefd=False)
+
 logging.basicConfig(
     level=getattr(logging, config.LOG_LEVEL),
     format=config.LOG_FORMAT,
     handlers=[
-        logging.StreamHandler(sys.stdout),
+        _stdout_handler,
         logging.FileHandler(
             config.DATA_DIR / "pipeline.log",
             encoding="utf-8",
@@ -40,8 +50,9 @@ def run_scraping_pipeline() -> dict:
 
     results = {
         "jobspy": 0,
-        "greenhouse": 0,
-        "lever": 0,
+        "ats": 0,
+        "apis": 0,
+        "rss": 0,
         "total_new": 0,
         "errors": [],
     }
@@ -55,22 +66,29 @@ def run_scraping_pipeline() -> dict:
         logger.error("JobSpy scraper crashed: %s", e, exc_info=True)
         results["errors"].append(f"JobSpy: {e}")
 
-    # [2] Run Greenhouse scraper
+    # [2] Run Unified ATS scraper (Greenhouse, Lever, Ashby, etc.)
     try:
-        results["greenhouse"] = run_greenhouse_scraper()
+        results["ats"] = run_ats_scraper()
     except Exception as e:
-        logger.error("Greenhouse scraper crashed: %s", e, exc_info=True)
-        results["errors"].append(f"Greenhouse: {e}")
+        logger.error("ATS scraper crashed: %s", e, exc_info=True)
+        results["errors"].append(f"ATS: {e}")
 
-    # [3] Run Lever scraper
+    # [4] Run Free API scraper
     try:
-        results["lever"] = run_lever_scraper()
+        results["apis"] = run_api_scraper()
     except Exception as e:
-        logger.error("Lever scraper crashed: %s", e, exc_info=True)
-        results["errors"].append(f"Lever: {e}")
+        logger.error("API scraper crashed: %s", e, exc_info=True)
+        results["errors"].append(f"APIs: {e}")
+
+    # [5] Run RSS scraper
+    try:
+        results["rss"] = run_rss_scraper()
+    except Exception as e:
+        logger.error("RSS scraper crashed: %s", e, exc_info=True)
+        results["errors"].append(f"RSS: {e}")
 
     # Calculate totals
-    results["total_new"] = results["jobspy"] + results["greenhouse"] + results["lever"]
+    results["total_new"] = results.get("jobspy", 0) + results.get("ats", 0) + results.get("apis", 0) + results.get("rss", 0)
     elapsed = round(time.time() - start_time, 1)
 
     # Summary
@@ -78,9 +96,10 @@ def run_scraping_pipeline() -> dict:
     logger.info("=" * 70)
     logger.info("SCRAPING PIPELINE COMPLETE")
     logger.info("-" * 70)
-    logger.info("  JobSpy (LinkedIn/Indeed/Glassdoor/Google/Naukri): %d new jobs", results["jobspy"])
-    logger.info("  Greenhouse:   %d new jobs", results["greenhouse"])
-    logger.info("  Lever:        %d new jobs", results["lever"])
+    logger.info("  JobSpy:       %d new jobs", results.get("jobspy", 0))
+    logger.info("  Unified ATS:  %d new jobs", results.get("ats", 0))
+    logger.info("  Free APIs:    %d new jobs", results.get("apis", 0))
+    logger.info("  RSS Feeds:    %d new jobs", results.get("rss", 0))
     logger.info("-" * 70)
     logger.info("  TOTAL NEW:    %d jobs", results["total_new"])
     logger.info("  Time elapsed: %s seconds", elapsed)
@@ -94,18 +113,38 @@ def run_scraping_pipeline() -> dict:
 def run_scoring_pipeline() -> dict:
     """
     Score all unscored jobs using Module 2's career-ops style evaluation.
+    Runs a liveness check first to skip dead listings.
     """
     unscored = database.get_unscored_jobs()
     if not unscored:
         logger.info("No new unscored jobs found.")
-        return {"scored": 0, "unscored": 0}
+        return {"scored": 0, "skipped_dead": 0, "errors": 0}
 
-    logger.info("Found %d unscored jobs. Starting evaluation...", len(unscored))
+    logger.info("Found %d unscored jobs. Checking liveness...", len(unscored))
+
+    # Liveness filter — skip jobs whose URLs are dead
+    live_jobs = []
+    dead_count = 0
+    for job in unscored:
+        if is_live(job.get("job_url", "")):
+            live_jobs.append(job)
+        else:
+            dead_count += 1
+            logger.info("Skipping dead listing: %s at %s", job["title"], job["company"])
+
+    if dead_count:
+        logger.info("Liveness check: %d dead listing(s) skipped.", dead_count)
+
+    if not live_jobs:
+        logger.info("No live jobs to score after liveness check.")
+        return {"scored": 0, "skipped_dead": dead_count, "errors": 0}
+
+    logger.info("Starting evaluation of %d live jobs...", len(live_jobs))
     
     scored_count = 0
     errors = 0
 
-    for job in unscored:
+    for job in live_jobs:
         try:
             logger.info(f"Evaluating: {job['title']} at {job['company']}")
             
@@ -117,7 +156,6 @@ def run_scoring_pipeline() -> dict:
             )
             
             # Format lists to JSON strings for DB storage
-            import json
             matching_skills_str = json.dumps(eval_data.get("matching_skills", []))
             skill_gaps_str = json.dumps(eval_data.get("skill_gaps", []))
             
@@ -152,7 +190,12 @@ def run_scoring_pipeline() -> dict:
             elif score_val >= config.SCORE_THRESHOLD:
                 label = "🟡 Decent"
                 
-            logger.info(f"  → Score: {score_val:.1f}/5.0 ({label}) | Legitimacy: {eval_data.get('legitimacy')}")
+            score_label_text = label.encode("ascii", errors="replace").decode("ascii")
+            logger.info("  -> Score: %.1f/5.0 (%s) | Legitimacy: %s",
+                        score_val, score_label_text, eval_data.get('legitimacy'))
+
+            # Mark job as evaluated in the funnel
+            mark_evaluated(job["id"])
             
         except Exception as e:
             logger.error(f"Failed to score job {job['id']} ({job['title']}): {e}", exc_info=True)
@@ -165,7 +208,7 @@ def run_scoring_pipeline() -> dict:
     logger.info(f"  Errors: {errors}")
     logger.info("=" * 70)
 
-    return {"scored": scored_count, "errors": errors}
+    return {"scored": scored_count, "skipped_dead": dead_count, "errors": errors}
 
 
 def main():
@@ -178,10 +221,17 @@ def main():
     # Initialize database
     database.init_db()
 
+    # Run DB migrations for new columns
+    ensure_status_columns()
+
+    # Preload dedup engine from DB (cross-run deduplication)
+    dedup = DeduplicationEngine()
+    dedup.preload_from_db()
+
     # Step 1: Scrape
     scrape_results = run_scraping_pipeline()
 
-    # Step 2: Score (Module 2 — placeholder for now)
+    # Step 2: Score with liveness check
     score_results = run_scoring_pipeline()
 
     # Final stats
@@ -194,12 +244,15 @@ def main():
     logger.info("   Avg score:       %s", stats["avg_score"])
     logger.info("")
 
-    return {
+    pipeline_output = {
         "scraping": scrape_results,
         "scoring": score_results,
         "stats": stats,
     }
+    return pipeline_output
 
 
 if __name__ == "__main__":
-    main()
+    results = main()
+    # Send Telegram digest at the end of every run
+    send_daily_digest(pipeline_results=results)

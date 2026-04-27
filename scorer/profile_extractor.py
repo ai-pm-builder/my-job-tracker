@@ -57,7 +57,7 @@ def get_structured_profile() -> dict:
     raw_text = extract_text_from_pdf(config.RESUME_PATH)
     
     llm = ChatGoogleGenerativeAI(
-        model="gemini-1.5-flash",
+        model="gemini-2.0-flash-lite",
         temperature=0.1,
         # Use structured output for guaranteed JSON mapping
     )
