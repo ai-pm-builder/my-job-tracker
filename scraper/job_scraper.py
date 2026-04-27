@@ -5,7 +5,6 @@ Scrapes jobs from LinkedIn, Indeed, Glassdoor, Google Jobs, and Naukri.
 
 import logging
 import pandas as pd
-from jobspy import scrape_jobs
 
 import config
 import database
@@ -19,6 +18,12 @@ def _scrape_single_search(search_term: str, location: str) -> pd.DataFrame:
     Returns a DataFrame of results (may be empty).
     """
     try:
+        try:
+            from jobspy import scrape_jobs
+        except ImportError:
+            logger.error("python-jobspy is not installed or broken. Skipping JobSpy scrape.")
+            return pd.DataFrame()
+            
         # Separate Google search from other sites
         non_google_sites = [s for s in config.JOBSPY_SITES if s != "google"]
         google_included = "google" in config.JOBSPY_SITES
@@ -108,6 +113,19 @@ def _store_jobs(df: pd.DataFrame, source_label: str = "jobspy") -> int:
 
         if not title or not job_url or job_url == "nan":
             continue
+            
+        # Apply negative filters
+        skip = False
+        if hasattr(config, "NEGATIVE_KEYWORDS"):
+            title_lower = title.lower()
+            import re
+            for negative in config.NEGATIVE_KEYWORDS:
+                if re.search(r'\b' + re.escape(negative) + r'\b', title_lower):
+                    skip = True
+                    break
+        
+        if skip:
+            continue
 
         job_id = database.insert_job(
             title=title,
@@ -138,7 +156,31 @@ def run_jobspy_scraper() -> int:
     logger.info("STARTING JOBSPY SCRAPER")
     logger.info("=" * 60)
 
+    # Circuit breaker logic
+    import json
+    import time
+    breaker_file = config.DATA_DIR / "jobspy_breaker.json"
+    
+    if breaker_file.exists():
+        try:
+            with open(breaker_file, "r") as f:
+                breaker_state = json.load(f)
+            
+            if breaker_state.get("failures", 0) >= 3:
+                last_failure = breaker_state.get("last_failure", 0)
+                if time.time() - last_failure < 24 * 3600:
+                    logger.warning("JobSpy circuit breaker is OPEN (failed 3+ times). Skipping for 24 hours.")
+                    return 0
+                else:
+                    logger.info("JobSpy circuit breaker RESET (24 hours passed).")
+                    breaker_state = {"failures": 0, "last_failure": 0}
+                    with open(breaker_file, "w") as f:
+                        json.dump(breaker_state, f)
+        except Exception as e:
+            logger.debug(f"Circuit breaker check failed: {e}")
+
     total_new = 0
+    failures_in_run = 0
 
     for search_term in config.SEARCH_TERMS:
         for location in config.LOCATIONS:
@@ -154,6 +196,27 @@ def run_jobspy_scraper() -> int:
                 logger.info(
                     "  No results for '%s' in '%s'", search_term, location,
                 )
+                failures_in_run += 1
+
+    # If everything failed or we caught exceptions, increment global breaker
+    total_searches = len(config.SEARCH_TERMS) * len(config.LOCATIONS)
+    if failures_in_run >= total_searches and total_searches > 0:
+        logger.warning("JobSpy returned no results for any search. Recording failure.")
+        try:
+            import json
+            import time
+            breaker_state = {"failures": 0, "last_failure": 0}
+            if breaker_file.exists():
+                with open(breaker_file, "r") as f:
+                    breaker_state = json.load(f)
+            
+            breaker_state["failures"] = breaker_state.get("failures", 0) + 1
+            breaker_state["last_failure"] = time.time()
+            
+            with open(breaker_file, "w") as f:
+                json.dump(breaker_state, f)
+        except Exception as e:
+            logger.debug(f"Failed to update circuit breaker: {e}")
 
     logger.info("JOBSPY SCRAPER COMPLETE — %d new jobs added", total_new)
     return total_new

@@ -32,11 +32,29 @@ SEARCH_TERMS = [
     "Group Product Manager",
 ]
 
+# Negative keywords to filter out irrelevant roles
+NEGATIVE_KEYWORDS = [
+    "associate",
+    "intern",
+    "junior",
+    "designer",
+    "engineer",
+    "data analyst",
+    "marketing",
+    "sales",
+    "customer success",
+]
+
 # Google Jobs requires its own search term format
 GOOGLE_SEARCH_TERMS = [
     "Senior Product Manager jobs",
     "Lead Product Manager jobs",
     "Principal Product Manager jobs",
+]
+
+# RSS feeds from Google Alerts
+GOOGLE_ALERTS_RSS_URLS = [
+    "https://remoteok.com/remote-product-manager-jobs.rss"
 ]
 
 # Locations to search — India focus + Remote
@@ -57,7 +75,7 @@ COUNTRY_INDEED = "india"
 
 # ──────────────────────────── Scraping Settings ────────────────────────────
 HOURS_OLD = 24              # Only fetch jobs posted within last 24 hours
-RESULTS_WANTED = 25         # Max results per search term per site
+RESULTS_WANTED = 10         # Max results per search term per site
 IS_REMOTE = False           # Set to True to filter remote-only jobs
 JOB_TYPE = "fulltime"       # fulltime, parttime, contract, internship
 
