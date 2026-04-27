@@ -334,6 +334,111 @@ def get_job_stats() -> dict:
     conn.close()
     return stats
 
+def get_filtered_jobs(
+    modes: list[str] = None,
+    days: int = None,
+    min_score: float = None,
+    max_score: float = None,
+    search: str = None,
+) -> list[dict]:
+    """
+    Get jobs with optional dashboard filters applied.
+
+    Args:
+        modes:     List of remote_policy values e.g. ['Remote', 'Hybrid']
+        days:      Only show jobs posted/scraped within last N days
+        min_score: Minimum overall_score filter
+        max_score: Maximum overall_score filter
+        search:    Free-text search on title or company name
+    """
+    conn = get_connection()
+
+    where_clauses = []
+    params = []
+
+    # Mode filter (remote_policy stored in scores table)
+    if modes:
+        placeholders = ",".join("?" * len(modes))
+        where_clauses.append(f"(s.remote_policy IN ({placeholders}) OR (s.remote_policy IS NULL AND j.is_remote = 1 AND 'Remote' IN ({placeholders})))")
+        params.extend(modes)
+        params.extend(modes)
+
+    # Time filter — use date_posted if available, else date_scraped
+    if days:
+        where_clauses.append(
+            "COALESCE(j.date_posted, j.date_scraped) >= datetime('now', ?)"
+        )
+        params.append(f"-{days} days")
+
+    # Score range filter
+    if min_score is not None:
+        where_clauses.append("COALESCE(s.overall_score, 0) >= ?")
+        params.append(min_score)
+    if max_score is not None:
+        where_clauses.append("COALESCE(s.overall_score, 6) <= ?")
+        params.append(max_score)
+
+    # Free-text search
+    if search:
+        where_clauses.append("(j.title LIKE ? OR j.company LIKE ?)")
+        like = f"%{search}%"
+        params.extend([like, like])
+
+    where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+
+    query = f"""
+        SELECT j.*,
+               s.overall_score, s.cv_match, s.north_star_alignment,
+               s.compensation, s.cultural_signals, s.red_flags,
+               s.archetype, s.legitimacy, s.reasoning,
+               s.matching_skills, s.skill_gaps, s.gap_analysis,
+               s.personalization_plan, s.interview_prep, s.scored_at,
+               s.remote_policy,
+               CASE WHEN tr.id IS NOT NULL THEN 1 ELSE 0 END AS has_resume,
+               tr.file_path AS resume_path,
+               tr.created_at AS resume_created_at
+        FROM jobs j
+        LEFT JOIN scores s ON j.id = s.job_id
+        LEFT JOIN (
+            SELECT job_id, MAX(id) AS id, file_path, created_at
+            FROM tailored_resumes
+            GROUP BY job_id
+        ) tr ON j.id = tr.job_id
+        {where_sql}
+        ORDER BY COALESCE(s.overall_score, -1) DESC, j.date_scraped DESC
+        LIMIT 500
+    """
+
+    rows = conn.execute(query, params).fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def get_remote_policy_values() -> list[str]:
+    """Get all distinct remote_policy values from the scores table, for filter dropdowns."""
+    conn = get_connection()
+    rows = conn.execute(
+        "SELECT DISTINCT remote_policy FROM scores WHERE remote_policy IS NOT NULL ORDER BY remote_policy"
+    ).fetchall()
+    conn.close()
+    return [row[0] for row in rows if row[0]]
+
+
+def get_tailored_resume_for_job(job_id: int) -> Optional[dict]:
+    """Get the most recent tailored resume record for a job, if it exists."""
+    conn = get_connection()
+    row = conn.execute(
+        """
+        SELECT * FROM tailored_resumes
+        WHERE job_id = ?
+        ORDER BY created_at DESC
+        LIMIT 1
+        """,
+        (job_id,),
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
 
 # Initialize DB on import
 init_db()
