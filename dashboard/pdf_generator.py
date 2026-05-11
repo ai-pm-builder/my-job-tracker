@@ -231,6 +231,12 @@ def generate_pdf(
     """
     Fill the template and render HTML → PDF using Playwright headless Chromium.
 
+    Playwright's sync API uses asyncio internally. When called from inside
+    Streamlit (which already holds a running event loop), Windows raises
+    NotImplementedError in asyncio.create_subprocess_exec.  The fix is to
+    execute the entire Playwright session in a dedicated worker thread that
+    has its own clean event loop.
+
     Args:
         tailored:         TailoredResume object from resume_tailor.tailor_resume()
         company:          Company name (used in output filename)
@@ -240,6 +246,7 @@ def generate_pdf(
     Returns:
         Path to the generated PDF file.
     """
+    import concurrent.futures
     from playwright.sync_api import sync_playwright  # lazy import
 
     profile = load_profile_yml()
@@ -251,29 +258,33 @@ def generate_pdf(
     pdf_path = config.OUTPUT_DIR / f"cv-{safe_company}-{today}.pdf"
     config.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # ── Playwright render ──────────────────────────────────────────
+    # ── Inner worker: runs in a fresh thread with its own event loop ───
+    def _render_in_thread(html: str, out_path: Path) -> None:
+        with sync_playwright() as pw:
+            browser = pw.chromium.launch(headless=True)
+            try:
+                page = browser.new_page()
+                page.set_content(html, wait_until="networkidle")
+                page.evaluate("() => document.fonts.ready")
+                page.pdf(
+                    path=str(out_path),
+                    format="A4",
+                    print_background=True,
+                    margin={
+                        "top": "0.6in",
+                        "right": "0.6in",
+                        "bottom": "0.6in",
+                        "left": "0.6in",
+                    },
+                )
+            finally:
+                browser.close()
+
+    # ── Dispatch to worker thread so asyncio gets a clean loop ────────
     logger.info("Rendering PDF → %s", pdf_path)
-    with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=True)
-        try:
-            page = browser.new_page()
-            # Set content; Google Fonts CDN needs network access
-            page.set_content(html_content, wait_until="networkidle")
-            # Wait for fonts to finish loading
-            page.evaluate("() => document.fonts.ready")
-            page.pdf(
-                path=str(pdf_path),
-                format="A4",
-                print_background=True,
-                margin={
-                    "top": "0.6in",
-                    "right": "0.6in",
-                    "bottom": "0.6in",
-                    "left": "0.6in",
-                },
-            )
-        finally:
-            browser.close()
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+        future = executor.submit(_render_in_thread, html_content, pdf_path)
+        future.result()  # re-raises any exception from the worker thread
 
     size_kb = pdf_path.stat().st_size / 1024
     logger.info("PDF generated: %s (%.1f KB)", pdf_path, size_kb)

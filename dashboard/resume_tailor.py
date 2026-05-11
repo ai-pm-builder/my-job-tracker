@@ -179,7 +179,7 @@ def bootstrap_profile_cache(profile_yml: dict) -> dict:
     raw_text = _extract_pdf_text(resume_pdf_path)
 
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
+        model="gemini-2.5-flash",
         temperature=0.1,
         max_retries=2,
     )
