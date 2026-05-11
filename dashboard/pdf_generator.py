@@ -258,27 +258,37 @@ def generate_pdf(
     pdf_path = config.OUTPUT_DIR / f"cv-{safe_company}-{today}.pdf"
     config.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    # ── Inner worker: runs in a fresh thread with its own event loop ───
+    # ── Inner worker: runs in a fresh thread with a ProactorEventLoop ─
+    # On Windows, worker threads default to SelectorEventLoop which does NOT
+    # support asyncio.create_subprocess_exec (raises NotImplementedError).
+    # Playwright needs to spawn Chromium, so we must explicitly install a
+    # ProactorEventLoop in this thread before calling sync_playwright.
     def _render_in_thread(html: str, out_path: Path) -> None:
-        with sync_playwright() as pw:
-            browser = pw.chromium.launch(headless=True)
-            try:
-                page = browser.new_page()
-                page.set_content(html, wait_until="networkidle")
-                page.evaluate("() => document.fonts.ready")
-                page.pdf(
-                    path=str(out_path),
-                    format="A4",
-                    print_background=True,
-                    margin={
-                        "top": "0.6in",
-                        "right": "0.6in",
-                        "bottom": "0.6in",
-                        "left": "0.6in",
-                    },
-                )
-            finally:
-                browser.close()
+        import asyncio
+        loop = asyncio.ProactorEventLoop()
+        asyncio.set_event_loop(loop)
+        try:
+            with sync_playwright() as pw:
+                browser = pw.chromium.launch(headless=True)
+                try:
+                    page = browser.new_page()
+                    page.set_content(html, wait_until="networkidle")
+                    page.evaluate("() => document.fonts.ready")
+                    page.pdf(
+                        path=str(out_path),
+                        format="A4",
+                        print_background=True,
+                        margin={
+                            "top": "0.6in",
+                            "right": "0.6in",
+                            "bottom": "0.6in",
+                            "left": "0.6in",
+                        },
+                    )
+                finally:
+                    browser.close()
+        finally:
+            loop.close()
 
     # ── Dispatch to worker thread so asyncio gets a clean loop ────────
     logger.info("Rendering PDF → %s", pdf_path)
