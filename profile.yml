@@ -11,8 +11,8 @@ phone: ""                              # Optional. Leave empty to omit from CV.
 location: "India"
 
 # ── Online Presence ───────────────────────────────────────
-linkedin_url: "https://linkedin.com/in/your-profile"    # ← Fill this in
-linkedin_display: "linkedin.com/in/your-profile"        # ← Fill this in
+linkedin_url: "https://linkedin.com/in/asifpm"    # ← Fill this in
+linkedin_display: "linkedin.com/in/asifpm"        # ← Fill this in
 portfolio_url: ""                      # Optional. Leave empty to omit from CV.
 portfolio_display: ""                  # Optional.
 

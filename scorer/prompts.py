@@ -15,14 +15,15 @@ Instructions:
 2. Summarize their experience, emphasizing measurable achievements (metrics, scale).
 3. Identify all proof points (concrete examples of impact, e.g., "Reduced latency by 40%").
 4. Identify which of these "AI/Tech Archetypes" best fit this candidate (select up to 3):
-   - AI Platform / LLMOps Engineer
-   - Agentic Workflows / Automation Engineer
-   - Technical AI Product Manager
-   - AI Solutions Architect
-   - AI Forward Deployed Engineer
-   - AI Transformation Lead
-   - Generalist Software Engineer
+   - Product manager
+   - AI Product Manager
+   - Senior Product manager
    - Traditional Product Manager
+   - Group product manager
+   - Director of product management
+   - Head of product
+   - VP of product
+   - Principal Product Manager
 
 Resume Text:
 ```

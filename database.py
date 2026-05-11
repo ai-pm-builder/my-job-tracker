@@ -63,6 +63,9 @@ def init_db():
             cultural_signals REAL,
             red_flags REAL,
             archetype TEXT,
+            domain TEXT,
+            seniority TEXT,
+            remote_policy TEXT,
             legitimacy TEXT DEFAULT 'Proceed with Caution',
             reasoning TEXT,
             matching_skills TEXT,
@@ -97,7 +100,31 @@ def init_db():
     
     conn.commit()
     conn.close()
+    
+    # Run migrations for score columns
+    ensure_score_columns()
+    
     logger.info("Database initialized successfully at %s", DB_PATH)
+
+
+def ensure_score_columns() -> None:
+    """Idempotently add missing columns to the scores table."""
+    conn = get_connection()
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(scores)").fetchall()}
+    
+    to_add = {
+        "domain": "TEXT",
+        "seniority": "TEXT",
+        "remote_policy": "TEXT"
+    }
+    
+    for col, dtype in to_add.items():
+        if col not in existing:
+            conn.execute(f"ALTER TABLE scores ADD COLUMN {col} {dtype}")
+            logger.info("database: added '%s' column to scores table.", col)
+    
+    conn.commit()
+    conn.close()
 
 
 def generate_url_hash(job_url: str, title: str) -> str:
@@ -175,6 +202,9 @@ def insert_score(
     cultural_signals: float = None,
     red_flags: float = None,
     archetype: str = None,
+    domain: str = None,
+    seniority: str = None,
+    remote_policy: str = None,
     legitimacy: str = "Proceed with Caution",
     reasoning: str = None,
     matching_skills: str = None,
@@ -189,14 +219,16 @@ def insert_score(
         """
         INSERT OR REPLACE INTO scores
             (job_id, overall_score, cv_match, north_star_alignment, compensation,
-             cultural_signals, red_flags, archetype, legitimacy, reasoning,
-             matching_skills, skill_gaps, gap_analysis, personalization_plan, interview_prep)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             cultural_signals, red_flags, archetype, domain, seniority, remote_policy,
+             legitimacy, reasoning, matching_skills, skill_gaps, gap_analysis,
+             personalization_plan, interview_prep)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             job_id, overall_score, cv_match, north_star_alignment, compensation,
-            cultural_signals, red_flags, archetype, legitimacy, reasoning,
-            matching_skills, skill_gaps, gap_analysis, personalization_plan, interview_prep
+            cultural_signals, red_flags, archetype, domain, seniority, remote_policy,
+            legitimacy, reasoning, matching_skills, skill_gaps, gap_analysis,
+            personalization_plan, interview_prep
         ),
     )
     conn.commit()
@@ -390,7 +422,7 @@ def get_filtered_jobs(
         SELECT j.*,
                s.overall_score, s.cv_match, s.north_star_alignment,
                s.compensation, s.cultural_signals, s.red_flags,
-               s.archetype, s.legitimacy, s.reasoning,
+               s.archetype, s.domain, s.seniority, s.legitimacy, s.reasoning,
                s.matching_skills, s.skill_gaps, s.gap_analysis,
                s.personalization_plan, s.interview_prep, s.scored_at,
                s.remote_policy,

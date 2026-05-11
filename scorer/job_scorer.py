@@ -68,7 +68,7 @@ def score_job(job_description: str, job_title: str, company: str) -> dict:
 
     # Initialize LLM
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
+        model="gemini-3.1-flash-lite-preview",
         temperature=0.2, # Low temp for analytical consistency
         max_retries=2
     )

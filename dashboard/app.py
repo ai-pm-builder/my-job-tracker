@@ -26,6 +26,7 @@ if str(ROOT) not in sys.path:
 
 import database
 import config
+from dashboard.scorer_bridge import score_job_on_demand
 
 # ── logging ──────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -300,6 +301,14 @@ def render_sidebar() -> dict:
         )
 
         st.markdown("---")
+        st.markdown("### ⚡ Actions")
+        score_all_triggered = st.button(
+            "⚡ Score All Unscored",
+            use_container_width=True,
+            key="score_all_btn",
+            help="Run AI scoring on every job that hasn't been scored yet.",
+        )
+        st.markdown("---")
         st.markdown(
             '<div style="color:#475569;font-size:0.75rem;text-align:center;">'
             'Powered by Gemini 2.5 Flash · career-ops style</div>',
@@ -312,6 +321,7 @@ def render_sidebar() -> dict:
         "days": days,
         "min_score": score_range[0],
         "max_score": score_range[1],
+        "score_all_triggered": score_all_triggered,
     }
 
 
@@ -422,7 +432,7 @@ def render_jobs_table(jobs: list[dict]):
         resume_path = job.get("resume_path")
 
         # ── Job card header ────────────────────────────────────────
-        c1, c2, c3, c4, c5, c6 = st.columns([3, 2, 1.2, 1, 1.5, 1.8])
+        c1, c2, c3, c4, c5, c6, c7 = st.columns([3, 2, 1.2, 1, 1.5, 1.8, 1.5])
 
         with c1:
             st.markdown(
@@ -497,6 +507,22 @@ def render_jobs_table(jobs: list[dict]):
                         logger.error("Resume generation failed for job %d: %s", job_id, e, exc_info=True)
                         st.error(f"Generation failed: {e}")
 
+        with c7:
+            # ── On-demand Score Now (unscored jobs only) ───────────
+            if score is None:
+                score_key = f"score_btn_{job_id}_{idx}"
+                if st.button("⚡ Score Now", key=score_key):
+                    with st.spinner(f"Scoring {job.get('title', '')}…"):
+                        result = score_job_on_demand(job)
+                    if result.get("liveness_warning"):
+                        st.warning(result["liveness_warning"])
+                    if result["success"]:
+                        s = result["eval_data"]["overall_score"]
+                        st.success(f"Scored: {s:.1f}/5.0")
+                        st.rerun()
+                    else:
+                        st.error(result.get("error") or "Scoring failed.")
+
         # ── Expandable detail panel ────────────────────────────────
         render_job_detail(job, idx)
         st.markdown('<hr style="margin: 6px 0; border-color: #1e293b;">', unsafe_allow_html=True)
@@ -531,6 +557,40 @@ def main():
     render_stats(stats)
     st.markdown("---")
 
+    # ── Score All Unscored (triggered from sidebar) ─────────────────
+    if filters.get("score_all_triggered"):
+        unscored = database.get_unscored_jobs()
+        if not unscored:
+            st.info("✅ All jobs are already scored — nothing to do.")
+        else:
+            progress_bar = st.progress(0, text=f"Preparing to score {len(unscored)} jobs…")
+            success_count = 0
+            warn_count = 0
+            error_count = 0
+            for i, job in enumerate(unscored):
+                progress_bar.progress(
+                    (i + 1) / len(unscored),
+                    text=(
+                        f"Scoring {i + 1} / {len(unscored)}: "
+                        f"{job['title']} @ {job['company']}"
+                    ),
+                )
+                result = score_job_on_demand(job)
+                if result["success"]:
+                    success_count += 1
+                if result.get("liveness_warning"):
+                    warn_count += 1
+                if result.get("error"):
+                    error_count += 1
+            progress_bar.empty()
+            msg = f"✅ Scored {success_count} / {len(unscored)} jobs."
+            if warn_count:
+                msg += f" ⚠️ {warn_count} had dead URLs (scored anyway)."
+            if error_count:
+                msg += f" ❌ {error_count} failed."
+            st.success(msg)
+            st.rerun()
+
     # ── Fetch filtered jobs ────────────────────────────────────────
     jobs = database.get_filtered_jobs(
         modes=filters["modes"],
@@ -542,13 +602,14 @@ def main():
 
     # ── Table ──────────────────────────────────────────────────────
     # Column headers
-    h1, h2, h3, h4, h5, h6 = st.columns([3, 2, 1.2, 1, 1.5, 1.8])
+    h1, h2, h3, h4, h5, h6, h7 = st.columns([3, 2, 1.2, 1, 1.5, 1.8, 1.5])
     h1.markdown("**Job / Company**")
     h2.markdown("**Location / Mode**")
     h3.markdown("**Score**")
     h4.markdown("**Trust**")
     h5.markdown("**Posted**")
     h6.markdown("**Resume**")
+    h7.markdown("**Score Action**")
     st.markdown('<hr style="margin: 4px 0; border-color: #334155;">', unsafe_allow_html=True)
 
     render_jobs_table(jobs)
